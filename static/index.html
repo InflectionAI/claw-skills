@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CLAW | Claude Skill Runner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    ::selection { background: rgba(255, 45, 45, 0.25); color: #fff; }
+
+    :root {
+      --bg-page: #0a0a0a;
+      --bg-card: #0d0d0d;
+      --bg-surface: #141414;
+      --bg-input: #1a1a1a;
+      --border-subtle: #222;
+      --border-mid: #333;
+      --death-red: #ff2d2d;
+      --death-red-hover: #ff4444;
+      --death-red-disabled-bg: #4a0000;
+      --death-red-disabled-text: #8a3333;
+      --hacker-green: #00ff41;
+      --hacker-green-hover: #33ff6e;
+      --warning-amber: #ffb800;
+      --purple: #7c3aed;
+      --text-primary: #e0e0e0;
+      --text-muted: #888;
+      --text-dim: #555;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Scan Lines Overlay ── */
+    .scan-lines {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 50;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+      pointer-events: none;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-page); }
+    ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 24px 60px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Header / Title ── */
+    .header { text-align: center; margin-bottom: 40px; }
+
+    .title {
+      font-family: var(--font-display);
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      position: relative;
+      display: inline-block;
+      color: var(--text-primary);
+    }
+    .title .claw { color: var(--death-red); }
+
+    /* Glitch effect */
+    .glitch-text { position: relative; }
+    .glitch-text::before,
+    .glitch-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+    }
+    .glitch-text::before {
+      clip-path: inset(0 0 65%);
+      color: var(--death-red);
+      text-shadow: -2px 0 var(--hacker-green);
+      animation: glitch-1 3s linear infinite alternate-reverse;
+    }
+    .glitch-text::after {
+      clip-path: inset(65% 0 0);
+      color: var(--hacker-green);
+      text-shadow: 2px 0 var(--death-red);
+      animation: glitch-2 3s linear infinite alternate-reverse;
+    }
+    @keyframes glitch-1 {
+      0%, 95% { transform: translate(0); }
+      96% { transform: translate(-2px, 1px); }
+      97% { transform: translate(2px, -1px); }
+      98% { transform: translate(-1px, 2px); }
+      100% { transform: translate(0); }
+    }
+    @keyframes glitch-2 {
+      0%, 95% { transform: translate(0); }
+      96% { transform: translate(2px, -1px); }
+      97% { transform: translate(-2px, 1px); }
+      98% { transform: translate(1px, -2px); }
+      100% { transform: translate(0); }
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--death-red);
+      margin-top: 8px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 28px;
+      gap: 0;
+    }
+    .tab {
+      padding: 12px 24px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .tab:hover { color: var(--text-primary); }
+    .tab.active {
+      color: var(--death-red);
+      border-bottom-color: var(--death-red);
+    }
+
+    /* ── Tab Content ── */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Labels ── */
+    label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    /* ── Inputs ── */
+    textarea, input[type="text"] {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 14px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      resize: vertical;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--death-red);
+      box-shadow: 0 0 0 2px rgba(255, 45, 45, 0.15);
+    }
+    .skill-area { height: 140px; }
+    .input-area { height: 180px; }
+
+    /* ── Controls Row ── */
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+    .control-group { flex: 1; }
+
+    select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    select:focus {
+      outline: none;
+      border-color: var(--death-red);
+    }
+    select option { background: var(--bg-surface); }
+
+    /* ── File Upload ── */
+    .file-upload {
+      margin-bottom: 10px;
+    }
+    .file-upload input[type="file"] {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .file-upload input[type="file"]::file-selector-button {
+      background: var(--bg-input);
+      border: 1px solid var(--border-mid);
+      border-radius: 4px;
+      padding: 6px 12px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      cursor: pointer;
+      margin-right: 8px;
+      transition: border-color 0.2s;
+    }
+    .file-upload input[type="file"]::file-selector-button:hover {
+      border-color: var(--death-red);
+    }
+
+    /* ── Buttons ── */
+    .btn-run {
+      padding: 12px 32px;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--death-red);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn-run:hover { background: var(--death-red-hover); transform: scale(1.02); }
+    .btn-run:active { transform: scale(0.98); }
+    .btn-run:disabled {
+      background: var(--death-red-disabled-bg);
+      color: var(--death-red-disabled-text);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Output ── */
+    .output-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 20px;
+      min-height: 220px;
+      white-space: pre-wrap;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: var(--hacker-green);
+      overflow-x: auto;
+    }
+    .output-box.waiting { color: var(--text-dim); }
+    .output-box .error-text { color: var(--death-red); }
+
+    /* ── Meta / Token Usage ── */
+    .meta {
+      display: flex;
+      gap: 16px;
+      margin-top: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+    .meta span { display: inline-flex; align-items: center; gap: 4px; }
+    .meta .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-red { background: var(--death-red); }
+    .dot-green { background: var(--hacker-green); }
+    .dot-amber { background: var(--warning-amber); }
+
+    /* ── Terminal Header ── */
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .terminal-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .terminal-dot.red { background: #ff5f57; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green { background: #28c840; }
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-left: 8px;
+    }
+
+    /* ── Pulse animation for live indicator ── */
+    .pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Keyboard shortcut hint ── */
+    .hint {
+      text-align: center;
+      margin-top: 24px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+    kbd {
+      background: var(--bg-input);
+      border: 1px solid var(--border-mid);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .title { font-size: 2rem; }
+      .tabs { overflow-x: auto; }
+      .tab { padding: 10px 16px; font-size: 0.7rem; }
+      .controls { flex-direction: column; }
+      .container { padding: 24px 16px 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scan-lines"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1 class="title glitch-text" data-text="CLAW">
+        <span class="claw">CLAW</span>
+      </h1>
+      <div class="subtitle">Claude Skill Runner</div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" id="tabs"></div>
+
+    <!-- Skill Tabs (dynamically created) -->
+    <div id="tab-panels"></div>
+
+    <!-- Custom Tab (always present) -->
+    <div class="tab-content" id="panel-custom">
+      <div class="card">
+        <label>Skill / System Prompt</label>
+        <div class="file-upload">
+          <input type="file" id="skill-file" accept=".md,.txt">
+        </div>
+        <textarea id="skill-custom" class="skill-area" placeholder="Paste your skill markdown here or upload a file..."></textarea>
+      </div>
+
+      <div class="card">
+        <label>Input</label>
+        <textarea id="input-custom" class="input-area" placeholder="Enter your input text..."></textarea>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <label>Model</label>
+          <select id="model-custom">
+            <option value="claude-opus-4-6">Opus 4.6</option>
+            <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+            <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+          </select>
+        </div>
+        <button class="btn-run" onclick="runCustom()">Execute</button>
+      </div>
+
+      <div class="card">
+        <div class="terminal-header">
+          <span class="terminal-dot red"></span>
+          <span class="terminal-dot yellow"></span>
+          <span class="terminal-dot green"></span>
+          <span class="terminal-title">output</span>
+        </div>
+        <div id="output-custom" class="output-box waiting">Awaiting execution...</div>
+        <div id="meta-custom" class="meta"></div>
+      </div>
+    </div>
+
+    <div class="hint"><kbd>Cmd</kbd> + <kbd>Enter</kbd> to execute</div>
+  </div>
+
+  <script>
+    let preloadedSkills = {};
+    let activeTab = null;
+    let updatingFromHash = false;
+
+    // ── URL State ──
+    // Hash format: #tab=name&input-name=encoded&model-name=encoded&skill-custom=encoded
+    // Each tab's input and model are stored as input-{tab} and model-{tab}
+
+    function saveStateToHash() {
+      if (updatingFromHash) return;
+      const params = new URLSearchParams();
+      if (activeTab) params.set('tab', activeTab);
+
+      // Save all tabs' inputs and models (so bookmarks preserve everything)
+      const allTabs = [...Object.keys(preloadedSkills), 'custom'];
+      for (const name of allTabs) {
+        const inputEl = document.getElementById(`input-${name}`);
+        const modelEl = document.getElementById(`model-${name}`);
+        if (inputEl && inputEl.value) params.set(`input-${name}`, inputEl.value);
+        if (modelEl && modelEl.value !== 'claude-opus-4-6') params.set(`model-${name}`, modelEl.value);
+      }
+      // Custom tab: also save the skill textarea
+      const skillCustom = document.getElementById('skill-custom');
+      if (skillCustom && skillCustom.value) params.set('skill-custom', skillCustom.value);
+
+      const hash = params.toString();
+      if (hash) {
+        history.replaceState(null, '', '#' + hash);
+      } else {
+        history.replaceState(null, '', location.pathname);
+      }
+    }
+
+    function loadStateFromHash() {
+      const hash = location.hash.slice(1);
+      if (!hash) return null;
+      updatingFromHash = true;
+      try {
+        const params = new URLSearchParams(hash);
+
+        // Restore inputs, models, and custom skill for all tabs
+        for (const [key, value] of params) {
+          if (key === 'tab') continue;
+          const el = document.getElementById(key);
+          if (el) {
+            el.value = value;
+          }
+        }
+
+        return params.get('tab');
+      } finally {
+        updatingFromHash = false;
+      }
+    }
+
+    // Debounced hash update on input changes
+    let hashTimer = null;
+    function scheduleHashUpdate() {
+      clearTimeout(hashTimer);
+      hashTimer = setTimeout(saveStateToHash, 400);
+    }
+
+    // ── Tab switching ──
+    function switchTab(name) {
+      activeTab = name;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.tab-content').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
+      saveStateToHash();
+    }
+
+    // ── Create a skill tab panel ──
+    function createSkillPanel(name, skillContent) {
+      const panel = document.createElement('div');
+      panel.className = 'tab-content';
+      panel.id = `panel-${name}`;
+      panel.innerHTML = `
+        <div class="card">
+          <label>Skill: ${name.toUpperCase()}</label>
+          <textarea class="skill-area" id="skill-${name}" readonly style="color: var(--text-dim); cursor: default;">${escapeHtml(skillContent)}</textarea>
+        </div>
+        <div class="card">
+          <label>Input</label>
+          <textarea id="input-${name}" class="input-area" placeholder="Enter your input for the ${name} skill..."></textarea>
+        </div>
+        <div class="controls">
+          <div class="control-group">
+            <label>Model</label>
+            <select id="model-${name}">
+              <option value="claude-opus-4-6">Opus 4.6</option>
+              <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+              <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+            </select>
+          </div>
+          <button class="btn-run" id="btn-${name}" onclick="runSkill('${name}')">Execute</button>
+        </div>
+        <div class="card">
+          <div class="terminal-header">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">output &mdash; ${name}</span>
+          </div>
+          <div id="output-${name}" class="output-box waiting">Awaiting execution...</div>
+          <div id="meta-${name}" class="meta"></div>
+        </div>
+      `;
+      document.getElementById('tab-panels').appendChild(panel);
+
+      // Wire up hash updates for this tab's inputs
+      panel.querySelector(`#input-${name}`).addEventListener('input', scheduleHashUpdate);
+      panel.querySelector(`#model-${name}`).addEventListener('change', scheduleHashUpdate);
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Run a pre-loaded skill ──
+    async function runSkill(name) {
+      const btn = document.getElementById(`btn-${name}`);
+      const outputEl = document.getElementById(`output-${name}`);
+      const metaEl = document.getElementById(`meta-${name}`);
+      const skill = preloadedSkills[name];
+      const input = document.getElementById(`input-${name}`).value;
+      const model = document.getElementById(`model-${name}`).value;
+      await execute(btn, outputEl, metaEl, skill, input, model);
+    }
+
+    // ── Run custom skill ──
+    async function runCustom() {
+      const btn = document.querySelector('#panel-custom .btn-run');
+      const outputEl = document.getElementById('output-custom');
+      const metaEl = document.getElementById('meta-custom');
+      const skill = document.getElementById('skill-custom').value;
+      const input = document.getElementById('input-custom').value;
+      const model = document.getElementById('model-custom').value;
+      await execute(btn, outputEl, metaEl, skill, input, model);
+    }
+
+    // ── Core execution ──
+    async function execute(btn, outputEl, metaEl, skill, input, model) {
+      if (!input.trim()) {
+        outputEl.className = 'output-box';
+        outputEl.innerHTML = '<span class="error-text">// ERROR: No input provided</span>';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Running...';
+      outputEl.className = 'output-box waiting';
+      outputEl.textContent = '> Connecting to Claude...\n> Processing...';
+      metaEl.innerHTML = '';
+
+      try {
+        const resp = await fetch('/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skill, input, model }),
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+          outputEl.className = 'output-box';
+          outputEl.innerHTML = `<span class="error-text">// ERROR: ${escapeHtml(data.error)}</span>`;
+        } else {
+          outputEl.className = 'output-box';
+          outputEl.textContent = data.output;
+          metaEl.innerHTML = `
+            <span><span class="dot dot-green"></span> ${data.model}</span>
+            <span><span class="dot dot-amber"></span> ${data.usage.input_tokens} in</span>
+            <span><span class="dot dot-red"></span> ${data.usage.output_tokens} out</span>
+          `;
+        }
+      } catch (err) {
+        outputEl.className = 'output-box';
+        outputEl.innerHTML = `<span class="error-text">// CONNECTION FAILED: ${escapeHtml(err.message)}</span>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Execute';
+      }
+    }
+
+    // ── Init: load skills, build tabs, restore state ──
+    (async function init() {
+      const tabsEl = document.getElementById('tabs');
+
+      try {
+        const resp = await fetch('/skills');
+        preloadedSkills = await resp.json();
+        const names = Object.keys(preloadedSkills);
+
+        // Create a tab + panel for each skill
+        for (const name of names) {
+          const tab = document.createElement('button');
+          tab.className = 'tab';
+          tab.dataset.tab = name;
+          tab.textContent = name;
+          tab.onclick = () => switchTab(name);
+          tabsEl.appendChild(tab);
+          createSkillPanel(name, preloadedSkills[name]);
+        }
+      } catch (e) {
+        console.warn('Could not load skills:', e);
+      }
+
+      // Always add Custom tab last
+      const customTab = document.createElement('button');
+      customTab.className = 'tab';
+      customTab.dataset.tab = 'custom';
+      customTab.textContent = 'Custom';
+      customTab.onclick = () => switchTab('custom');
+      tabsEl.appendChild(customTab);
+
+      // Wire up hash updates for custom tab inputs
+      document.getElementById('input-custom').addEventListener('input', scheduleHashUpdate);
+      document.getElementById('model-custom').addEventListener('change', scheduleHashUpdate);
+      document.getElementById('skill-custom').addEventListener('input', scheduleHashUpdate);
+
+      // Restore state from URL hash, or default to first tab
+      const savedTab = loadStateFromHash();
+      const defaultTab = Object.keys(preloadedSkills)[0] || 'custom';
+      switchTab(savedTab || defaultTab);
+    })();
+
+    // ── Handle browser back/forward ──
+    window.addEventListener('hashchange', () => {
+      const savedTab = loadStateFromHash();
+      if (savedTab && savedTab !== activeTab) switchTab(savedTab);
+    });
+
+    // ── File upload (custom tab) ──
+    document.getElementById('skill-file').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        document.getElementById('skill-custom').value = ev.target.result;
+        scheduleHashUpdate();
+      };
+      reader.readAsText(file);
+    });
+
+    // ── Keyboard shortcut ──
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (activeTab === 'custom') {
+          runCustom();
+        } else if (activeTab && preloadedSkills[activeTab]) {
+          runSkill(activeTab);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
