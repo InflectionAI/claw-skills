@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -379,6 +380,124 @@
       color: var(--text-muted);
     }
 
+    /* ── Output Toolbar ── */
+    .output-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .output-toolbar button {
+      padding: 4px 10px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      background: none;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .output-toolbar button:hover { color: var(--text-primary); border-color: var(--border-mid); }
+    .output-toolbar button.active { color: var(--death-red); border-color: var(--death-red); }
+    .output-toolbar .btn-download {
+      color: var(--hacker-green);
+      border-color: var(--border-subtle);
+    }
+    .output-toolbar .btn-download:hover {
+      border-color: var(--hacker-green);
+    }
+
+    /* ── Markdown Preview ── */
+    .output-preview {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 24px 28px;
+      min-height: 220px;
+      overflow-x: auto;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      line-height: 1.75;
+      color: var(--text-primary);
+      display: none;
+    }
+    .output-preview.active { display: block; }
+    .output-box.active { display: block; }
+    .output-box:not(.active) { display: none; }
+
+    /* Markdown element styles */
+    .output-preview h1 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; margin: 28px 0 12px; color: #fff; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; }
+    .output-preview h2 { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; margin: 24px 0 10px; color: var(--death-red); }
+    .output-preview h3 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; margin: 20px 0 8px; color: var(--warning-amber); }
+    .output-preview h4 { font-family: var(--font-display); font-size: 0.95rem; font-weight: 600; margin: 16px 0 6px; color: var(--text-primary); }
+    .output-preview p { margin: 10px 0; }
+    .output-preview ul, .output-preview ol { margin: 10px 0; padding-left: 24px; }
+    .output-preview li { margin: 4px 0; }
+    .output-preview li::marker { color: var(--text-dim); }
+    .output-preview strong { color: #fff; font-weight: 600; }
+    .output-preview em { color: var(--text-muted); font-style: italic; }
+    .output-preview code {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--hacker-green);
+    }
+    .output-preview pre {
+      background: var(--bg-page);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 16px;
+      margin: 12px 0;
+      overflow-x: auto;
+    }
+    .output-preview pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: var(--hacker-green);
+    }
+    .output-preview blockquote {
+      border-left: 3px solid var(--death-red);
+      padding: 8px 16px;
+      margin: 12px 0;
+      color: var(--text-muted);
+      background: rgba(255, 45, 45, 0.05);
+      border-radius: 0 4px 4px 0;
+    }
+    .output-preview table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 0.82rem;
+    }
+    .output-preview th {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 2px solid var(--border-mid);
+      color: var(--death-red);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .output-preview td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .output-preview tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .output-preview hr { border: none; border-top: 1px solid var(--border-subtle); margin: 20px 0; }
+    .output-preview a { color: var(--hacker-green); text-decoration: none; }
+    .output-preview a:hover { text-decoration: underline; }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
       .title { font-size: 2rem; }
@@ -440,8 +559,14 @@
           <span class="terminal-dot yellow"></span>
           <span class="terminal-dot green"></span>
           <span class="terminal-title">output</span>
+          <div class="output-toolbar">
+            <button onclick="setOutputMode('custom', 'raw')">Raw</button>
+            <button class="active" onclick="setOutputMode('custom', 'preview')">Preview</button>
+            <button class="btn-download" onclick="downloadOutput('custom')">Download</button>
+          </div>
         </div>
-        <div id="output-custom" class="output-box waiting">Awaiting execution...</div>
+        <div id="output-custom" class="output-box">Awaiting execution...</div>
+        <div id="preview-custom" class="output-preview active"><p style="color: var(--text-dim);">Awaiting execution...</p></div>
         <div id="meta-custom" class="meta"></div>
       </div>
     </div>
@@ -463,17 +588,18 @@
       const params = new URLSearchParams();
       if (activeTab) params.set('tab', activeTab);
 
-      // Save all tabs' inputs and models (so bookmarks preserve everything)
-      const allTabs = [...Object.keys(preloadedSkills), 'custom'];
-      for (const name of allTabs) {
+      // Only save the active tab's inputs
+      const name = activeTab;
+      if (name) {
         const inputEl = document.getElementById(`input-${name}`);
         const modelEl = document.getElementById(`model-${name}`);
         if (inputEl && inputEl.value) params.set(`input-${name}`, inputEl.value);
         if (modelEl && modelEl.value !== 'claude-opus-4-6') params.set(`model-${name}`, modelEl.value);
+        if (name === 'custom') {
+          const skillCustom = document.getElementById('skill-custom');
+          if (skillCustom && skillCustom.value) params.set('skill-custom', skillCustom.value);
+        }
       }
-      // Custom tab: also save the skill textarea
-      const skillCustom = document.getElementById('skill-custom');
-      if (skillCustom && skillCustom.value) params.set('skill-custom', skillCustom.value);
 
       const hash = params.toString();
       if (hash) {
@@ -551,8 +677,14 @@
             <span class="terminal-dot yellow"></span>
             <span class="terminal-dot green"></span>
             <span class="terminal-title">output &mdash; ${name}</span>
+            <div class="output-toolbar">
+              <button onclick="setOutputMode('${name}', 'raw')">Raw</button>
+              <button class="active" onclick="setOutputMode('${name}', 'preview')">Preview</button>
+              <button class="btn-download" onclick="downloadOutput('${name}')">Download</button>
+            </div>
           </div>
-          <div id="output-${name}" class="output-box waiting">Awaiting execution...</div>
+          <div id="output-${name}" class="output-box">Awaiting execution...</div>
+          <div id="preview-${name}" class="output-preview active"><p style="color: var(--text-dim);">Awaiting execution...</p></div>
           <div id="meta-${name}" class="meta"></div>
         </div>
       `;
@@ -571,37 +703,187 @@
     async function runSkill(name) {
       const btn = document.getElementById(`btn-${name}`);
       const outputEl = document.getElementById(`output-${name}`);
+      const previewEl = document.getElementById(`preview-${name}`);
       const metaEl = document.getElementById(`meta-${name}`);
       const skill = preloadedSkills[name];
       const input = document.getElementById(`input-${name}`).value;
       const model = document.getElementById(`model-${name}`).value;
-      await execute(btn, outputEl, metaEl, skill, input, model);
+      await execute(name, btn, outputEl, previewEl, metaEl, skill, input, model);
     }
 
     // ── Run custom skill ──
     async function runCustom() {
       const btn = document.querySelector('#panel-custom .btn-run');
       const outputEl = document.getElementById('output-custom');
+      const previewEl = document.getElementById('preview-custom');
       const metaEl = document.getElementById('meta-custom');
       const skill = document.getElementById('skill-custom').value;
       const input = document.getElementById('input-custom').value;
       const model = document.getElementById('model-custom').value;
-      await execute(btn, outputEl, metaEl, skill, input, model);
+      await execute('custom', btn, outputEl, previewEl, metaEl, skill, input, model);
     }
 
-    // ── Core execution ──
-    async function execute(btn, outputEl, metaEl, skill, input, model) {
+    // ── Raw output storage per tab (for preview + download) ──
+    const rawOutputs = {};   // tabName -> raw markdown string
+    const inputTexts = {};   // tabName -> input text used for that run
+
+    // ── JSON to readable document ──
+    function jsonToDocument(obj, depth = 1) {
+      if (obj === null || obj === undefined) return '';
+      if (typeof obj === 'string') return escapeHtml(obj).replace(/\n/g, '<br>');
+      if (typeof obj === 'number' || typeof obj === 'boolean') return `<code>${obj}</code>`;
+
+      if (Array.isArray(obj)) {
+        if (obj.length === 0) return '<em>None</em>';
+        // Array of primitives: render as list
+        if (obj.every(item => typeof item !== 'object' || item === null)) {
+          return '<ul>' + obj.map(item => `<li>${jsonToDocument(item, depth)}</li>`).join('') + '</ul>';
+        }
+        // Array of objects: render each as a subsection
+        return obj.map((item, i) => {
+          const label = item.name || item.title || item.metric || item.category || `Item ${i + 1}`;
+          const tag = depth <= 3 ? `h${depth + 1}` : 'h4';
+          return `<${tag}>${escapeHtml(String(label))}</${tag}>${jsonToDocument(item, depth + 1)}`;
+        }).join('');
+      }
+
+      if (typeof obj === 'object') {
+        let html = '';
+        for (const [key, value] of Object.entries(obj)) {
+          const label = key.replace(/([A-Z])/g, ' $1').replace(/[_-]/g, ' ').replace(/^\w/, c => c.toUpperCase()).trim();
+
+          // Simple values: render inline
+          if (value === null || value === undefined) {
+            continue;
+          } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            // Long strings get their own block, short ones are inline
+            const strVal = String(value);
+            if (strVal.length > 120 || strVal.includes('\n')) {
+              const tag = depth <= 3 ? `h${depth + 1}` : 'h4';
+              html += `<${tag}>${escapeHtml(label)}</${tag}><p>${jsonToDocument(value, depth + 1)}</p>`;
+            } else {
+              html += `<p><strong>${escapeHtml(label)}:</strong> ${jsonToDocument(value, depth + 1)}</p>`;
+            }
+          } else {
+            // Nested object/array: render as section
+            const tag = depth <= 3 ? `h${depth + 1}` : 'h4';
+            html += `<${tag}>${escapeHtml(label)}</${tag}>${jsonToDocument(value, depth + 1)}`;
+          }
+        }
+        return html;
+      }
+
+      return escapeHtml(String(obj));
+    }
+
+    function renderPreview(raw) {
+      // Try to extract JSON from the output
+      // Handle: pure JSON, ```json fenced blocks, or JSON embedded in markdown
+      let jsonObj = null;
+
+      // Try 1: pure JSON (possibly with leading/trailing whitespace)
+      const trimmed = raw.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try { jsonObj = JSON.parse(trimmed); } catch (e) {}
+      }
+
+      // Try 2: fenced ```json block
+      if (!jsonObj) {
+        const fenceMatch = raw.match(/```json\s*\n([\s\S]*?)\n```/);
+        if (fenceMatch) {
+          try { jsonObj = JSON.parse(fenceMatch[1]); } catch (e) {}
+        }
+      }
+
+      // Try 3: find the largest JSON object in the text
+      if (!jsonObj) {
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch && jsonMatch[0].length > 100) {
+          try { jsonObj = JSON.parse(jsonMatch[0]); } catch (e) {}
+        }
+      }
+
+      if (jsonObj) {
+        // Render JSON as a structured document
+        const title = jsonObj.companyName || jsonObj.company || jsonObj.name || jsonObj.title || '';
+        const score = jsonObj.deathScore ?? jsonObj.score ?? null;
+        let header = '';
+        if (title || score !== null) {
+          header = `<h1>${escapeHtml(String(title))}`;
+          if (score !== null) {
+            const color = score >= 66 ? 'var(--death-red)' : score >= 26 ? 'var(--warning-amber)' : 'var(--hacker-green)';
+            header += ` <span style="color:${color}; font-size:0.7em; filter: drop-shadow(0 0 8px ${color});">[${score}/100]</span>`;
+          }
+          header += '</h1>';
+        }
+        return header + jsonToDocument(jsonObj, 1);
+      }
+
+      // Fallback: render as markdown
+      return marked.parse(raw);
+    }
+
+    // ── Output mode toggle (raw / preview) ──
+    function setOutputMode(name, mode) {
+      const rawEl = document.getElementById(`output-${name}`);
+      const previewEl = document.getElementById(`preview-${name}`);
+      const card = rawEl.closest('.card');
+      const buttons = card.querySelectorAll('.output-toolbar button:not(.btn-download)');
+
+      if (mode === 'preview') {
+        rawEl.classList.remove('active');
+        previewEl.classList.add('active');
+        const raw = rawOutputs[name] || rawEl.textContent || '';
+        previewEl.innerHTML = renderPreview(raw);
+        buttons[0].classList.remove('active');
+        buttons[1].classList.add('active');
+      } else {
+        rawEl.classList.add('active');
+        previewEl.classList.remove('active');
+        buttons[0].classList.add('active');
+        buttons[1].classList.remove('active');
+      }
+    }
+
+    // ── Download output as .md file ──
+    function downloadOutput(name) {
+      const raw = rawOutputs[name];
+      if (!raw) return;
+
+      // Build filename: skill-first-few-words.md
+      const inputEl = document.getElementById(`input-${name}`);
+      const inputText = inputTexts[name] || inputEl?.value || '';
+      const slug = inputText.trim().split(/\s+/).slice(0, 5).join('-')
+        .toLowerCase().replace(/[^a-z0-9\-]/g, '').replace(/-+/g, '-').slice(0, 50);
+      const filename = `${name}${slug ? '-' + slug : ''}.md`;
+
+      const blob = new Blob([raw], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ── Core execution (streaming) ──
+    async function execute(tabName, btn, outputEl, previewEl, metaEl, skill, input, model) {
       if (!input.trim()) {
-        outputEl.className = 'output-box';
+        outputEl.className = 'output-box active';
         outputEl.innerHTML = '<span class="error-text">// ERROR: No input provided</span>';
         return;
       }
 
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span>Running...';
-      outputEl.className = 'output-box waiting';
-      outputEl.textContent = '> Connecting to Claude...\n> Processing...';
+      // Reset to raw mode during streaming
+      setOutputMode(tabName, 'raw');
+      outputEl.className = 'output-box active';
+      outputEl.textContent = '';
+      previewEl.innerHTML = '';
       metaEl.innerHTML = '';
+      rawOutputs[tabName] = '';
+      inputTexts[tabName] = input;
 
       try {
         const resp = await fetch('/run', {
@@ -609,22 +891,72 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ skill, input, model }),
         });
-        const data = await resp.json();
 
-        if (data.error) {
-          outputEl.className = 'output-box';
-          outputEl.innerHTML = `<span class="error-text">// ERROR: ${escapeHtml(data.error)}</span>`;
-        } else {
-          outputEl.className = 'output-box';
-          outputEl.textContent = data.output;
-          metaEl.innerHTML = `
-            <span><span class="dot dot-green"></span> ${data.model}</span>
-            <span><span class="dot dot-amber"></span> ${data.usage.input_tokens} in</span>
-            <span><span class="dot dot-red"></span> ${data.usage.output_tokens} out</span>
-          `;
+        // Check if the response is SSE stream or JSON (error case)
+        const contentType = resp.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await resp.json();
+          outputEl.innerHTML = `<span class="error-text">// ERROR: ${escapeHtml(data.error || 'Unknown error')}</span>`;
+          return;
+        }
+
+        // Stream SSE tokens
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep incomplete line in buffer
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const event = JSON.parse(line.slice(6));
+              if (event.type === 'text') {
+                rawOutputs[tabName] += event.text;
+                outputEl.textContent += event.text;
+                outputEl.scrollTop = outputEl.scrollHeight;
+              } else if (event.type === 'done') {
+                metaEl.innerHTML = `
+                  <span><span class="dot dot-green"></span> ${event.model}</span>
+                  <span><span class="dot dot-amber"></span> ${event.usage.input_tokens} in</span>
+                  <span><span class="dot dot-red"></span> ${event.usage.output_tokens} out</span>
+                  ${event.cached ? '<span style="color: var(--hacker-green);">CACHED</span>' : ''}
+                `;
+                // Auto-switch to preview when streaming completes
+                setOutputMode(tabName, 'preview');
+              }
+            } catch (e) { /* skip malformed lines */ }
+          }
+        }
+        // Process any remaining buffer after stream ends
+        if (buffer.startsWith('data: ')) {
+          try {
+            const event = JSON.parse(buffer.slice(6));
+            if (event.type === 'text') {
+              rawOutputs[tabName] += event.text;
+              outputEl.textContent += event.text;
+            } else if (event.type === 'done') {
+              metaEl.innerHTML = `
+                <span><span class="dot dot-green"></span> ${event.model}</span>
+                <span><span class="dot dot-amber"></span> ${event.usage.input_tokens} in</span>
+                <span><span class="dot dot-red"></span> ${event.usage.output_tokens} out</span>
+              `;
+            }
+          } catch (e) { /* skip */ }
+        }
+
+        // Always switch to preview when streaming is fully complete
+        if (rawOutputs[tabName]) {
+          setOutputMode(tabName, 'preview');
         }
       } catch (err) {
-        outputEl.className = 'output-box';
+        outputEl.className = 'output-box active';
         outputEl.innerHTML = `<span class="error-text">// CONNECTION FAILED: ${escapeHtml(err.message)}</span>`;
       } finally {
         btn.disabled = false;

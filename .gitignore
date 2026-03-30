@@ -4,3 +4,4 @@ __pycache__/
 .deepeval/
 .claude/
 *.pyc
+.cache/
